@@ -1,10 +1,2 @@
-bin
-etc
-include
-lib
-libexec
-LICENSE.txt
-NOTICE.txt
-README.txt
-sbin
-share
+libs/*
+hadoop_output
