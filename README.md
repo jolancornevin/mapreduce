@@ -1,4 +1,4 @@
-# mapreduce
+# Mapreduce On Grid5000
 With the help of : https://www.tutorialspoint.com/hadoop
 
 ## Initialisation : 
@@ -15,10 +15,13 @@ export JAVA_HOME=/usr/lib/jvm/default-java
 
 ### Installing hadoop
 ```
+cd ${HOME}
 wget ftp://mirrors.ircam.fr/pub/apache/hadoop/common/hadoop-2.7.3/hadoop-2.7.3.tar.gz
 tar xvf hadoop-2.7.3.tar.gz
 mv hadoop-2.7.3 hadoop
 export HADOOP_HOME=${HOME}/hadoop
+
+cd "repocloned"
 
 cd libs
 wget http://central.maven.org/maven2/org/apache/hadoop/hadoop-core/1.2.1/hadoop-core-1.2.1.jar
