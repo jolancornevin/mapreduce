@@ -3,6 +3,7 @@ With the help of : https://www.tutorialspoint.com/hadoop
 
 ### Use :
 run the ```./init.sh``` command when connecting to the grid5000 serveur
+
 run the ```./run.sh``` command will compile and run files
 
 
