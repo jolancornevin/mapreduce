@@ -1,6 +1,11 @@
 # Mapreduce On Grid5000
 With the help of : https://www.tutorialspoint.com/hadoop
 
+### Use :
+run the ```./init.sh``` command when connecting to the grid5000 serveur
+run the ```./run.sh``` command will compile and run files
+
+
 ## Initialisation : 
 ```
 cd ~
@@ -45,6 +50,3 @@ Is the input directory assign to hadoop. Generated with the following command
 #### input : 
 Is our input directory.
 ```$HADOOP_HOME/bin/hadoop fs -put ./input/sample.txt```
-
-### Use :
-run the ```./run.sh``` command will compile all files and run them on the inputs files
