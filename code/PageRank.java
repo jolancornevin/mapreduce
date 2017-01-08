@@ -1,3 +1,5 @@
+package hadoop;
+
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -137,11 +139,10 @@ public class PageRank {
             res.pageRank = Short.valueOf(initialLine.nextToken());
 
             for (Character node : res.outputLink) {
-                output.collect(new Text(String.valueOf(res.node)), new OutMapFunctionStruct(node, 0.85 * (res.pageRank / res.outputLink.size())));
+                output.collect(new Text(String.valueOf(node)), new OutMapFunctionStruct(res.node, 0.85 * (res.pageRank / res.outputLink.size())));
             }
         }
     }
-
 
     //Reducer class
     public static class PageRankReducer extends MapReduceBase implements
@@ -152,10 +153,15 @@ public class PageRank {
                            OutputCollector<Text, OutMapFunctionStruct> output, Reporter reporter) throws IOException {
             OutMapFunctionStruct val;
 
+            HashMap<Character, PageRankStruct> hashmap = new HashMap<Character, PageRankStruct>();
+            Double pageRank = 0d;
+
             while (values.hasNext()) {
                 val = values.next();
-                output.collect(key, val);
+                pageRank += val.givenPageRank;
             }
+
+            output.collect(key, new OutMapFunctionStruct('-', 0.15 + pageRank));
         }
     }
 
