@@ -1,3 +1,4 @@
 libs/*
 hadoop_output
 compiled/*
+hadoop_input/*
