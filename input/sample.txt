@@ -1,4 +1,4 @@
-a:b,c
-b:c
-c:a
-d:c
+a:b,c:1
+b:c:1
+c:a:1
+d:c:1
