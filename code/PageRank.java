@@ -14,7 +14,10 @@ import java.util.Iterator;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
-class PageRankStruct implements Writable, Comparable, WritableComparable {
+/**
+ * Function used in the map function to properly parse each line of the file in PageRankStruct
+ */
+class MapParseur implements Writable, Comparable, WritableComparable {
     public char node;
     public short totalOutLinks;
     public Vector<Character> outputLink;
@@ -34,85 +37,117 @@ class PageRankStruct implements Writable, Comparable, WritableComparable {
         pageRank = in.readDouble();
     }
 
-    public static PageRankStruct read(DataInput in) throws IOException {
-        PageRankStruct w = new PageRankStruct();
+    public static MapParseur read(DataInput in) throws IOException {
+        MapParseur w = new MapParseur();
         w.readFields(in);
         return w;
     }
 
     public void setOutputLink(String s) {
-        if (s == null) {
-            outputLink = new Vector<Character>();
-        } else {
+        outputLink = new Vector<Character>();
+        if (s != null) {
             int len = s.length();
-            Vector<Character> array = new Vector<Character>();
             for (int i = 0; i < len; i++) {
-                array.add(s.charAt(i));
+                outputLink.add(s.charAt(i));
             }
-
-            outputLink = array;
         }
     }
 
     public void setOutputLink(String[] s) {
-        if (s == null) {
-            outputLink = new Vector<Character>();
-        } else {
-            int len = s.length;
-            Vector<Character> array = new Vector<Character>();
+        outputLink = new Vector<Character>();
+        if (s != null) {
             for (String value : s) {
-                array.add(value.charAt(0));
+                outputLink.add(value.charAt(0));
             }
-
-            outputLink = array;
         }
     }
 
     public String toString() {
-        return String.valueOf(outputLink) + ' ' + String.valueOf(totalOutLinks) + ' ' + String.valueOf(pageRank);
+        return String.valueOf(outputLink) + " " + String.valueOf(totalOutLinks) + " " + String.valueOf(pageRank);
     }
 
     public int compareTo(Object o) {
-        return String.valueOf(node).compareTo(String.valueOf(((PageRankStruct) o).node));
+        return String.valueOf(node).compareTo(String.valueOf(((MapParseur) o).node));
     }
 }
 
-class OutMapFunctionStruct implements Writable, Comparable, WritableComparable {
-    public char targetNode;
-    public double givenPageRank;
+class PageRankStruct implements Writable, Comparable, WritableComparable {
+    //Vector of all nodes
+    public Vector<Character> nodes;
+    public double score;
+    public PageRankState state;
 
-    public OutMapFunctionStruct() {
-
+    public PageRankStruct() {
+        nodes = new Vector<Character>();
+        state = PageRankState.NULL;
     }
 
-    public OutMapFunctionStruct(char targetNode, double givenPageRank) {
-        this.targetNode = targetNode;
-        this.givenPageRank = givenPageRank;
+    public PageRankStruct(char node, double givenPageRank, PageRankState state) {
+        nodes = new Vector<Character>();
+        nodes.add(node);
+        this.score = givenPageRank;
+        this.state = state;
+    }
+
+    public PageRankStruct(Vector<Character> nodes, double givenPageRank, PageRankState state) {
+        setNodes(nodes);
+        this.score = givenPageRank;
+        this.state = state;
+    }
+
+    public void setNodes(Vector<Character> s) {
+        nodes = new Vector<Character>();
+        if (s != null) {
+            for (Character value : s) {
+                nodes.add(value);
+            }
+        }
     }
 
     public void write(DataOutput out) throws IOException {
-        out.writeChar(targetNode);
-        out.writeDouble(givenPageRank);
+        out.writeInt(nodes.size());
+        for (Character aNode : nodes)
+            out.writeChar(aNode);
+        out.writeDouble(score);
+        out.writeInt(state.ordinal());
     }
 
     public void readFields(DataInput in) throws IOException {
-        targetNode = in.readChar();
-        givenPageRank = in.readDouble();
+        int totalNodes = in.readInt();
+        for (short iNode = 0; iNode < totalNodes; ++iNode)
+            nodes.add(in.readChar());
+        score = in.readDouble();
+        state = PageRankState.values()[in.readInt()];
     }
 
-    public static PageRankStruct read(DataInput in) throws IOException {
-        PageRankStruct w = new PageRankStruct();
+    public static MapParseur read(DataInput in) throws IOException {
+        MapParseur w = new MapParseur();
         w.readFields(in);
         return w;
     }
 
     public String toString() {
-        return String.valueOf(targetNode) + ' ' + String.valueOf(givenPageRank);
+        String str = "";
+
+        if (nodes.size() > 0) {
+            for (short iChar = 0; iChar < nodes.size() - 1; ++iChar)
+                str += nodes.get(iChar) + ",";
+
+            str += nodes.get(nodes.size() - 1);
+        }
+
+        return str + ":" + String.valueOf(score) + "--" + String.valueOf(state.ordinal());
     }
 
     public int compareTo(Object o) {
-        return String.valueOf(targetNode).compareTo(String.valueOf(((PageRankStruct) o).node));
+        return String.valueOf(nodes).compareTo(String.valueOf(((MapParseur) o).node));
     }
+}
+
+enum PageRankState {
+    META,
+    DATA,
+    NULL;
 }
 
 public class PageRank {
@@ -121,47 +156,75 @@ public class PageRank {
             implements Mapper<LongWritable,/*Input key Type */
             Text,                /*Input value Type*/
             Text,                /*Output key Type*/
-            OutMapFunctionStruct>        /*Output value Type*/ {
+            PageRankStruct>        /*Output value Type*/ {
 
         //Map function
-        public void map(LongWritable key, Text value,
-                        OutputCollector<Text, OutMapFunctionStruct> output,
-                        Reporter reporter) throws IOException {
-            String line = value.toString();
-            StringTokenizer initialLine = new StringTokenizer(line, ":");
+        public void map(LongWritable key, Text value, OutputCollector<Text, PageRankStruct> output, Reporter reporter)
+                throws IOException {
+            StringTokenizer initialLine = new StringTokenizer(value.toString(), ":");
 
-            PageRankStruct res = new PageRankStruct();
+            MapParseur res = new MapParseur();
             res.node = initialLine.nextToken().charAt(0);
 
-            //On compte le nombre de lien entrant
+            //Get all nodes pointed by res.node
             res.setOutputLink(initialLine.nextToken().split(","));
 
+            //Get the actual score of res.node
             res.pageRank = Short.valueOf(initialLine.nextToken());
 
+            //Send pointed nodes to the reduce function, in the aim to be able to reconstruct the input file later
+            output.collect(new Text(String.valueOf(res.node)), new PageRankStruct(res.outputLink, 0, PageRankState.META));
+            String str = "";
+
+            if (res.outputLink.size() > 0) {
+                for (short iChar = 0; iChar < res.outputLink.size() - 1; ++iChar)
+                    str += res.outputLink.get(iChar) + ",";
+
+                str += res.outputLink.get(res.outputLink.size() - 1);
+            }
+
+            System.out.println(res.node + " " + str);
+
+            //For each nodes, we send some of our pagerank score
             for (Character node : res.outputLink) {
-                output.collect(new Text(String.valueOf(node)), new OutMapFunctionStruct(res.node, 0.85 * (res.pageRank / res.outputLink.size())));
+                //output.collect(new Text(String.valueOf(node)), new PageRankStruct(res.node, 0.85 * (res.pageRank / res.outputLink.size()), PageRankState.DATA));
             }
         }
     }
 
     //Reducer class
-    public static class PageRankReducer extends MapReduceBase implements
-            Reducer<Text, OutMapFunctionStruct, Text, OutMapFunctionStruct> {
-
+    public static class PageRankReducer extends MapReduceBase implements Reducer<Text, PageRankStruct, Text, PageRankStruct> {
         //Reduce function
-        public void reduce(Text key, Iterator<OutMapFunctionStruct> values,
-                           OutputCollector<Text, OutMapFunctionStruct> output, Reporter reporter) throws IOException {
-            OutMapFunctionStruct val;
+        public void reduce(Text key, Iterator<PageRankStruct> values, OutputCollector<Text, PageRankStruct> output, Reporter reporter)
+                throws IOException {
+            PageRankStruct out = new PageRankStruct();
+            PageRankStruct val;
+            out.score = 0.15;
 
-            HashMap<Character, PageRankStruct> hashmap = new HashMap<Character, PageRankStruct>();
-            Double pageRank = 0d;
+            System.out.println("--------------------- " + key.toString() + " ---------------------");
 
             while (values.hasNext()) {
                 val = values.next();
-                pageRank += val.givenPageRank;
+                //If the state is META, then we get the pointed node back
+                if (val.state == PageRankState.META) {
+                    out.setNodes(val.nodes);
+                    String str = "";
+
+                    if (val.nodes.size() > 0) {
+                        for (short iChar = 0; iChar < val.nodes.size() - 1; ++iChar)
+                            str += val.nodes.get(iChar) + ",";
+
+                        str += val.nodes.get(val.nodes.size() - 1);
+                    }
+
+                    System.out.println("------------ META " + key.toString() + " " + str);
+                } else if (val.state == PageRankState.DATA) {
+                    out.score += val.score;
+                    System.out.println("------------ Data " + key.toString() + " " + out.score);
+                }
             }
 
-            output.collect(key, new OutMapFunctionStruct('-', 0.15 + pageRank));
+            output.collect(key, out);
         }
     }
 
@@ -173,15 +236,15 @@ public class PageRank {
 
         conf.setOutputKeyClass(Text.class);
         conf.setMapOutputKeyClass(Text.class);
-        conf.setMapOutputValueClass(OutMapFunctionStruct.class);
+        conf.setMapOutputValueClass(PageRankStruct.class);
         conf.setOutputKeyClass(Text.class);
-        conf.setOutputValueClass(OutMapFunctionStruct.class);
+        conf.setOutputValueClass(PageRankStruct.class);
 
         conf.setInputFormat(TextInputFormat.class);
         conf.setOutputFormat(TextOutputFormat.class);
 
         conf.setMapperClass(PageRankMapper.class);
-        conf.setCombinerClass(PageRankReducer.class);
+        //conf.setCombinerClass(PageRankReducer.class);
         conf.setReducerClass(PageRankReducer.class);
 
         FileInputFormat.setInputPaths(conf, new Path(args[0]));

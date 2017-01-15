@@ -3,4 +3,5 @@ sudo-g5k apt install default-jdk
 echo '-- now run those : ---'
 echo 'export JAVA_HOME=/usr/lib/jvm/default-java'
 echo 'export HADOOP_HOME=${HOME}/hadoop'
-echo alias ll='ls -la'
+echo "export PATH="$HOME/.local/bin:$PATH""
+echo "alias ll='ls -la'"
