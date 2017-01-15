@@ -10,7 +10,6 @@ import org.apache.hadoop.mapred.*;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.StringTokenizer;
 import java.util.Vector;
@@ -172,7 +171,7 @@ public class PageRank {
             res.setOutputLink(initialLine.nextToken().split(","));
 
             //Get the actual score of res.node
-            res.pageRank = Short.valueOf(initialLine.nextToken());
+            res.pageRank = Double.valueOf(initialLine.nextToken());
 
             //Send pointed nodes to the reduce function, in the aim to be able to reconstruct the input file later
             output.collect(new Text(String.valueOf(res.node)), new PageRankStruct(res.outputLink, 0, PageRankState.META));
@@ -209,25 +208,35 @@ public class PageRank {
 
     //Main function
     public static void main(String args[]) throws Exception {
-        JobConf conf = new JobConf(PageRank.class);
+        int iterations = new Integer(args[2]);
 
-        conf.setJobName("mapreducepagerank");
+        Path inPath = new Path(args[0]);
+        Path outPath = null;
 
-        conf.setOutputKeyClass(Text.class);
-        conf.setMapOutputKeyClass(Text.class);
-        conf.setMapOutputValueClass(PageRankStruct.class);
-        conf.setOutputKeyClass(Text.class);
-        conf.setOutputValueClass(PageRankStruct.class);
+        for (int i = 0; i < iterations; ++i) {
+            outPath = new Path(args[1] + i);
 
-        conf.setInputFormat(TextInputFormat.class);
-        conf.setOutputFormat(TextOutputFormat.class);
+            JobConf conf = new JobConf(PageRank.class);
+            conf.setJobName("mapreducepagerank");
 
-        conf.setMapperClass(PageRankMapper.class);
-        conf.setReducerClass(PageRankReducer.class);
+            conf.setOutputKeyClass(Text.class);
+            conf.setMapOutputKeyClass(Text.class);
+            conf.setMapOutputValueClass(PageRankStruct.class);
+            conf.setOutputKeyClass(Text.class);
+            conf.setOutputValueClass(PageRankStruct.class);
 
-        FileInputFormat.setInputPaths(conf, new Path(args[0]));
-        FileOutputFormat.setOutputPath(conf, new Path(args[1]));
+            conf.setInputFormat(TextInputFormat.class);
+            conf.setOutputFormat(TextOutputFormat.class);
 
-        JobClient.runJob(conf);
+            conf.setMapperClass(PageRankMapper.class);
+            conf.setReducerClass(PageRankReducer.class);
+
+            FileInputFormat.addInputPath(conf, inPath);
+            FileOutputFormat.setOutputPath(conf, outPath);
+
+            JobClient.runJob(conf);
+
+            inPath = outPath;
+        }
     }
 }
