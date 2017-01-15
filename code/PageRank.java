@@ -10,6 +10,7 @@ import org.apache.hadoop.mapred.*;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.StringTokenizer;
 import java.util.Vector;
@@ -114,6 +115,7 @@ class PageRankStruct implements Writable, Comparable, WritableComparable {
 
     public void readFields(DataInput in) throws IOException {
         int totalNodes = in.readInt();
+        nodes = new Vector<Character>();
         for (short iNode = 0; iNode < totalNodes; ++iNode)
             nodes.add(in.readChar());
         score = in.readDouble();
@@ -136,7 +138,7 @@ class PageRankStruct implements Writable, Comparable, WritableComparable {
             str += nodes.get(nodes.size() - 1);
         }
 
-        return str + ":" + String.valueOf(score) + "--" + String.valueOf(state.ordinal());
+        return ":" + str + ":" + String.valueOf(score);
     }
 
     public int compareTo(Object o) {
@@ -174,20 +176,10 @@ public class PageRank {
 
             //Send pointed nodes to the reduce function, in the aim to be able to reconstruct the input file later
             output.collect(new Text(String.valueOf(res.node)), new PageRankStruct(res.outputLink, 0, PageRankState.META));
-            String str = "";
-
-            if (res.outputLink.size() > 0) {
-                for (short iChar = 0; iChar < res.outputLink.size() - 1; ++iChar)
-                    str += res.outputLink.get(iChar) + ",";
-
-                str += res.outputLink.get(res.outputLink.size() - 1);
-            }
-
-            System.out.println(res.node + " " + str);
 
             //For each nodes, we send some of our pagerank score
             for (Character node : res.outputLink) {
-                //output.collect(new Text(String.valueOf(node)), new PageRankStruct(res.node, 0.85 * (res.pageRank / res.outputLink.size()), PageRankState.DATA));
+                output.collect(new Text(String.valueOf(node)), new PageRankStruct(new Vector<Character>(), 0.85 * (res.pageRank / res.outputLink.size()), PageRankState.DATA));
             }
         }
     }
@@ -201,26 +193,13 @@ public class PageRank {
             PageRankStruct val;
             out.score = 0.15;
 
-            System.out.println("--------------------- " + key.toString() + " ---------------------");
-
             while (values.hasNext()) {
                 val = values.next();
                 //If the state is META, then we get the pointed node back
                 if (val.state == PageRankState.META) {
                     out.setNodes(val.nodes);
-                    String str = "";
-
-                    if (val.nodes.size() > 0) {
-                        for (short iChar = 0; iChar < val.nodes.size() - 1; ++iChar)
-                            str += val.nodes.get(iChar) + ",";
-
-                        str += val.nodes.get(val.nodes.size() - 1);
-                    }
-
-                    System.out.println("------------ META " + key.toString() + " " + str);
                 } else if (val.state == PageRankState.DATA) {
                     out.score += val.score;
-                    System.out.println("------------ Data " + key.toString() + " " + out.score);
                 }
             }
 
@@ -244,7 +223,6 @@ public class PageRank {
         conf.setOutputFormat(TextOutputFormat.class);
 
         conf.setMapperClass(PageRankMapper.class);
-        //conf.setCombinerClass(PageRankReducer.class);
         conf.setReducerClass(PageRankReducer.class);
 
         FileInputFormat.setInputPaths(conf, new Path(args[0]));
