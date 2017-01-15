@@ -18,22 +18,22 @@ import java.util.Vector;
  * Function used in the map function to properly parse each line of the file in PageRankStruct
  */
 class MapParseur implements Writable, Comparable, WritableComparable {
-    public char node;
+    public String node;
     public short totalOutLinks;
-    public Vector<Character> outputLink;
+    public Vector<String> outputLink;
     public double pageRank;
 
     public void write(DataOutput out) throws IOException {
         out.writeShort(totalOutLinks);
-        for (short iChar = 0; iChar < totalOutLinks; ++iChar)
-            out.writeChar(outputLink.get(iChar));
+        for (short iStr = 0; iStr < totalOutLinks; ++iStr)
+            out.writeChars(outputLink.get(iStr).trim());
         out.writeDouble(pageRank);
     }
 
     public void readFields(DataInput in) throws IOException {
         totalOutLinks = in.readShort();
         for (short iChar = 0; iChar < totalOutLinks; ++iChar)
-            outputLink.add(in.readChar());
+            outputLink.add(in.readLine().trim());
         pageRank = in.readDouble();
     }
 
@@ -43,21 +43,11 @@ class MapParseur implements Writable, Comparable, WritableComparable {
         return w;
     }
 
-    public void setOutputLink(String s) {
-        outputLink = new Vector<Character>();
-        if (s != null) {
-            int len = s.length();
-            for (int i = 0; i < len; i++) {
-                outputLink.add(s.charAt(i));
-            }
-        }
-    }
-
     public void setOutputLink(String[] s) {
-        outputLink = new Vector<Character>();
+        outputLink = new Vector<String>();
         if (s != null) {
             for (String value : s) {
-                outputLink.add(value.charAt(0));
+                outputLink.add(value.trim());
             }
         }
     }
@@ -73,50 +63,55 @@ class MapParseur implements Writable, Comparable, WritableComparable {
 
 class PageRankStruct implements Writable, Comparable, WritableComparable {
     //Vector of all nodes
-    public Vector<Character> nodes;
+    public Vector<String> nodes;
     public double score;
     public PageRankState state;
 
     public PageRankStruct() {
-        nodes = new Vector<Character>();
+        nodes = new Vector<String>();
         state = PageRankState.NULL;
     }
 
-    public PageRankStruct(char node, double givenPageRank, PageRankState state) {
-        nodes = new Vector<Character>();
+    public PageRankStruct(String node, double givenPageRank, PageRankState state) {
+        nodes = new Vector<String>();
         nodes.add(node);
         this.score = givenPageRank;
         this.state = state;
     }
 
-    public PageRankStruct(Vector<Character> nodes, double givenPageRank, PageRankState state) {
+    public PageRankStruct(Vector<String> nodes, double givenPageRank, PageRankState state) {
         setNodes(nodes);
         this.score = givenPageRank;
         this.state = state;
     }
 
-    public void setNodes(Vector<Character> s) {
-        nodes = new Vector<Character>();
+    public void setNodes(Vector<String> s) {
+        nodes = new Vector<String>();
         if (s != null) {
-            for (Character value : s) {
-                nodes.add(value);
-            }
+            for (String value : s)
+                nodes.add(value.trim());
         }
     }
 
     public void write(DataOutput out) throws IOException {
         out.writeInt(nodes.size());
-        for (Character aNode : nodes)
-            out.writeChar(aNode);
+
+        for (String aNode : nodes) {
+            out.writeChars(aNode.trim() + "\n");
+        }
+
         out.writeDouble(score);
         out.writeInt(state.ordinal());
     }
 
     public void readFields(DataInput in) throws IOException {
         int totalNodes = in.readInt();
-        nodes = new Vector<Character>();
-        for (short iNode = 0; iNode < totalNodes; ++iNode)
-            nodes.add(in.readChar());
+        nodes = new Vector<String>();
+
+        for (short iNode = 0; iNode < totalNodes; ++iNode) {
+            nodes.add(in.readLine().trim());
+        }
+
         score = in.readDouble();
         state = PageRankState.values()[in.readInt()];
     }
@@ -165,7 +160,7 @@ public class PageRank {
             StringTokenizer initialLine = new StringTokenizer(value.toString(), ":");
 
             MapParseur res = new MapParseur();
-            res.node = initialLine.nextToken().charAt(0);
+            res.node = initialLine.nextToken().trim();
 
             //Get all nodes pointed by res.node
             res.setOutputLink(initialLine.nextToken().split(","));
@@ -177,8 +172,8 @@ public class PageRank {
             output.collect(new Text(String.valueOf(res.node)), new PageRankStruct(res.outputLink, 0, PageRankState.META));
 
             //For each nodes, we send some of our pagerank score
-            for (Character node : res.outputLink) {
-                output.collect(new Text(String.valueOf(node)), new PageRankStruct(new Vector<Character>(), 0.85 * (res.pageRank / res.outputLink.size()), PageRankState.DATA));
+            for (String node : res.outputLink) {
+                output.collect(new Text(String.valueOf(node)), new PageRankStruct(new Vector<String>(), 0.85 * (res.pageRank / res.outputLink.size()), PageRankState.DATA));
             }
         }
     }
@@ -195,11 +190,10 @@ public class PageRank {
             while (values.hasNext()) {
                 val = values.next();
                 //If the state is META, then we get the pointed node back
-                if (val.state == PageRankState.META) {
+                if (val.state == PageRankState.META)
                     out.setNodes(val.nodes);
-                } else if (val.state == PageRankState.DATA) {
+                else if (val.state == PageRankState.DATA)
                     out.score += val.score;
-                }
             }
 
             output.collect(key, out);
