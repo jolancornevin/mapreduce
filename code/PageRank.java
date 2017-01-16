@@ -61,6 +61,12 @@ class MapParseur implements Writable, Comparable, WritableComparable {
     }
 }
 
+/**
+ * Function used in two ways :
+ * META : nodes: Contains all outputlinks of a given node (the node itself is passed through the key)
+ * This is usefull to reconstruct the input file in order to iterate on all datas
+ * DATA : score: How much of our PageRank we give to an other node (the node itself is passed through the key)
+ */
 class PageRankStruct implements Writable, Comparable, WritableComparable {
     //Vector of all nodes
     public Vector<String> nodes;
@@ -70,13 +76,6 @@ class PageRankStruct implements Writable, Comparable, WritableComparable {
     public PageRankStruct() {
         nodes = new Vector<String>();
         state = PageRankState.NULL;
-    }
-
-    public PageRankStruct(String node, double givenPageRank, PageRankState state) {
-        nodes = new Vector<String>();
-        nodes.add(node);
-        this.score = givenPageRank;
-        this.state = state;
     }
 
     public PageRankStruct(Vector<String> nodes, double givenPageRank, PageRankState state) {
@@ -114,12 +113,6 @@ class PageRankStruct implements Writable, Comparable, WritableComparable {
 
         score = in.readDouble();
         state = PageRankState.values()[in.readInt()];
-    }
-
-    public static MapParseur read(DataInput in) throws IOException {
-        MapParseur w = new MapParseur();
-        w.readFields(in);
-        return w;
     }
 
     public String toString() {
