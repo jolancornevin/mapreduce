@@ -1,10 +1,7 @@
 package hadoop;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapred.*;
 
 import java.io.DataInput;
@@ -17,31 +14,11 @@ import java.util.Vector;
 /**
  * Function used in the map function to properly parse each line of the file in PageRankStruct
  */
-class MapParseur implements Writable, Comparable, WritableComparable {
+class MapParseur {
     public String node;
     public short totalOutLinks;
     public Vector<String> outputLink;
     public double pageRank;
-
-    public void write(DataOutput out) throws IOException {
-        out.writeShort(totalOutLinks);
-        for (short iStr = 0; iStr < totalOutLinks; ++iStr)
-            out.writeChars(outputLink.get(iStr).trim());
-        out.writeDouble(pageRank);
-    }
-
-    public void readFields(DataInput in) throws IOException {
-        totalOutLinks = in.readShort();
-        for (short iChar = 0; iChar < totalOutLinks; ++iChar)
-            outputLink.add(in.readLine().trim());
-        pageRank = in.readDouble();
-    }
-
-    public static MapParseur read(DataInput in) throws IOException {
-        MapParseur w = new MapParseur();
-        w.readFields(in);
-        return w;
-    }
 
     public void setOutputLink(String[] s) {
         outputLink = new Vector<String>();
@@ -52,12 +29,29 @@ class MapParseur implements Writable, Comparable, WritableComparable {
         }
     }
 
-    public String toString() {
-        return String.valueOf(outputLink) + " " + String.valueOf(totalOutLinks) + " " + String.valueOf(pageRank);
+    public void setFromLine(String str) {
+        StringTokenizer initialLine = new StringTokenizer(str, ":");
+
+        this.node = initialLine.nextToken().trim();
+        //Get the next token
+        String token = initialLine.nextToken();
+
+        //Here, we try if we can cast the token to a double.
+        // If so, then the node had not output links. Else, we get them and then get the page rank
+        try {
+            this.pageRank = Double.valueOf(token);
+        } catch (NumberFormatException e) {
+            this.setOutputLink(token.split(","));
+        }
+
+        if (this.outputLink != null)
+            this.pageRank = Double.valueOf(initialLine.nextToken());
+        else
+            this.outputLink = new Vector<String>();
     }
 
-    public int compareTo(Object o) {
-        return String.valueOf(node).compareTo(String.valueOf(((MapParseur) o).node));
+    public String toString() {
+        return String.valueOf(outputLink) + " " + String.valueOf(totalOutLinks) + " " + String.valueOf(pageRank);
     }
 }
 
@@ -96,7 +90,7 @@ class PageRankStruct implements Writable, Comparable, WritableComparable {
         out.writeInt(nodes.size());
 
         for (String aNode : nodes) {
-            out.writeChars(aNode.trim() + "\n");
+            out.writeBytes(aNode.trim() + "\n");
         }
 
         out.writeDouble(score);
@@ -108,7 +102,8 @@ class PageRankStruct implements Writable, Comparable, WritableComparable {
         nodes = new Vector<String>();
 
         for (short iNode = 0; iNode < totalNodes; ++iNode) {
-            nodes.add(in.readLine().trim());
+            String val = in.readLine();
+            nodes.add(val);
         }
 
         score = in.readDouble();
@@ -150,16 +145,8 @@ public class PageRank {
         //Map function
         public void map(LongWritable key, Text value, OutputCollector<Text, PageRankStruct> output, Reporter reporter)
                 throws IOException {
-            StringTokenizer initialLine = new StringTokenizer(value.toString(), ":");
-
             MapParseur res = new MapParseur();
-            res.node = initialLine.nextToken().trim();
-
-            //Get all nodes pointed by res.node
-            res.setOutputLink(initialLine.nextToken().split(","));
-
-            //Get the actual score of res.node
-            res.pageRank = Double.valueOf(initialLine.nextToken());
+            res.setFromLine(value.toString());
 
             //Send pointed nodes to the reduce function, in the aim to be able to reconstruct the input file later
             output.collect(new Text(String.valueOf(res.node)), new PageRankStruct(res.outputLink, 0, PageRankState.META));
