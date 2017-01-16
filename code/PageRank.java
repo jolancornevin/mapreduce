@@ -134,6 +134,41 @@ enum PageRankState {
     NULL;
 }
 
+
+class Sort {
+    //Mapper class
+    public static class SortMapper extends MapReduceBase
+            implements Mapper<LongWritable,     /*Input key Type */
+            Text,                           /*Input value Type*/
+            DoubleWritable,                 /*Output key Type*/
+            Text>                           /*Output value Type*/ {
+
+        //Map function
+        public void map(LongWritable key, Text value, OutputCollector<DoubleWritable, Text> output, Reporter reporter)
+                throws IOException {
+            MapParseur res = new MapParseur();
+
+            res.setFromLine(value.toString());
+
+            output.collect(new DoubleWritable(res.pageRank), new Text(res.node));
+        }
+    }
+
+    //Reducer class
+    public static class SortReducer extends MapReduceBase implements Reducer<DoubleWritable, Text, DoubleWritable, Text> {
+        //Reduce function
+        public void reduce(DoubleWritable key, Iterator<Text> values, OutputCollector<DoubleWritable, Text> output, Reporter reporter)
+                throws IOException {
+            Text val;
+
+            while (values.hasNext()) {
+                val = values.next();
+                output.collect(key, val);
+            }
+        }
+    }
+}
+
 public class PageRank {
     //Mapper class
     public static class PageRankMapper extends MapReduceBase
@@ -187,7 +222,8 @@ public class PageRank {
         Path inPath = new Path(args[0]);
         Path outPath = null;
 
-        for (int i = 0; i < iterations; ++i) {
+        int i = 0;
+        for (; i < iterations; ++i) {
             outPath = new Path(args[1] + i);
 
             JobConf conf = new JobConf(PageRank.class);
@@ -212,5 +248,31 @@ public class PageRank {
 
             inPath = outPath;
         }
+
+        outPath = new Path(args[1] + i);
+
+        JobConf conf = new JobConf(Sort.class);
+        conf.setJobName("sorting values");
+
+        conf.setOutputKeyClass(Text.class);
+
+        conf.setMapOutputKeyClass(DoubleWritable.class);
+        conf.setMapOutputValueClass(Text.class);
+
+        conf.setOutputKeyClass(DoubleWritable.class);
+        conf.setOutputValueClass(Text.class);
+
+        conf.setInputFormat(TextInputFormat.class);
+        conf.setOutputFormat(TextOutputFormat.class);
+
+        conf.setOutputKeyComparatorClass(DoubleWritable.Comparator.class);
+
+        conf.setMapperClass(Sort.SortMapper.class);
+        conf.setReducerClass(Sort.SortReducer.class);
+
+        FileInputFormat.addInputPath(conf, inPath);
+        FileOutputFormat.setOutputPath(conf, outPath);
+
+        JobClient.runJob(conf);
     }
 }
