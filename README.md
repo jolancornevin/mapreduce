@@ -34,7 +34,43 @@ wget http://central.maven.org/maven2/org/apache/hadoop/hadoop-core/1.2.1/hadoop-
 cd ..
 ```
 
-### Init hadoop
+### Hadoop on Grid5000
+#### First Installation
+```
+export http_proxy="http://proxy:3128"; export https_proxy="https://proxy:3128"
+
+easy_install --user execo
+
+wget https://github.com/mliroz/hadoop_g5k/archive/master.zip .
+
+echo "hadoop_g5k-master/" >> .gitignore
+
+unzip master.zip
+cd hadoop_g5k-master
+python setup.py install --user
+export PATH="$HOME/.local/bin:$PATH"
+```
+#### Everyday installation
+Sur le front et chaque noeud
+```
+cd hadoop_g5k-master
+python setup.py install --user
+export PATH="$HOME/.local/bin:$PATH"
+```
+#### Utilization
+```
+oarsub -I -t allow_classic_ssh -l nodes=4,walltime=2
+hg5k --create $OAR_FILE_NODES --version 2
+wget http://apache.crihan.fr/dist/hadoop/common/hadoop-2.6.5/hadoop-2.6.5.tar.gz
+hg5k --bootstrap ~/hadoop-2.6.5.tar.gz
+hg5k --initialize --start
+
+hg5k --putindfs ./input/sample.txt
+hg5k --jarjob ~/tp/compiled/compiled.jar hadoop.PageRank hadoop_input out 5
+hg5k --state files
+
+hg5k --delete
+```
 ## How to use it :
 
 ### Directory :
@@ -51,3 +87,4 @@ Is the input directory assign to hadoop. Generated with the following command
 #### input : 
 Is our input directory.
 ```$HADOOP_HOME/bin/hadoop fs -put ./input/sample.txt```
+
