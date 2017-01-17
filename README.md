@@ -51,22 +51,25 @@ python setup.py install --user
 export PATH="$HOME/.local/bin:$PATH"
 ```
 #### Everyday installation
-Sur le front et chaque noeud
 ```
-cd hadoop_g5k-master
+oarsub -I -t allow_classic_ssh -l nodes=2,walltime=2
+cd ~/tp/hadoop_g5k-master
 python setup.py install --user
 export PATH="$HOME/.local/bin:$PATH"
-```
-#### Utilization
-```
-oarsub -I -t allow_classic_ssh -l nodes=4,walltime=2
+cd ~/
+
 hg5k --create $OAR_FILE_NODES --version 2
-wget http://apache.crihan.fr/dist/hadoop/common/hadoop-2.6.5/hadoop-2.6.5.tar.gz
+//wget http://apache.crihan.fr/dist/hadoop/common/hadoop-2.6.5/hadoop-2.6.5.tar.gz
 hg5k --bootstrap ~/hadoop-2.6.5.tar.gz
 hg5k --initialize --start
 
-hg5k --putindfs ./input/sample.txt
-hg5k --jarjob ~/tp/compiled/compiled.jar hadoop.PageRank hadoop_input out 5
+hg5k --putindfs ~/tp/hadoop_input/* /input
+//Vérification de la copie des inputs
+hg5k --state files
+
+hg5k --jarjob ~/tp/compiled/compiled.jar hadoop.PageRank /input /output 5
+hg5k --getfromdfs /output5/* ./out_hdfs/
+cat ./out_hdfs/output5/part-00000 | less
 hg5k --state files
 
 hg5k --delete
