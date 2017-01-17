@@ -3,3 +3,4 @@ hadoop_output
 compiled/*
 hadoop_input/*
 hadoop_g5k-master/
+input/*
