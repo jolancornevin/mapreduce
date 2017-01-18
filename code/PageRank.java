@@ -12,14 +12,21 @@ import java.util.StringTokenizer;
 import java.util.Vector;
 
 /**
- * Function used in the map function to properly parse each line of the file in PageRankStruct
+ * Function used in the map to properly parse each line of the file in PageRankStruct
  */
 class MapParseur {
+    //The given node
     public String node;
-    public short totalOutLinks;
+    //All ouput nodes
     public Vector<String> outputLink;
+    //The actual pageRank score
     public double pageRank;
 
+    /**
+     * Set the outputLink from an array of string
+     *
+     * @param s
+     */
     public void setOutputLink(String[] s) {
         outputLink = new Vector<String>();
         if (s != null) {
@@ -29,6 +36,11 @@ class MapParseur {
         }
     }
 
+    /**
+     * For a given line from the input file, parse datas and set them in attributs
+     *
+     * @param str
+     */
     public void setFromLine(String str) {
         StringTokenizer initialLine = new StringTokenizer(str, ":");
 
@@ -48,10 +60,6 @@ class MapParseur {
             this.pageRank = Double.valueOf(initialLine.nextToken());
         else
             this.outputLink = new Vector<String>();
-    }
-
-    public String toString() {
-        return String.valueOf(outputLink) + " " + String.valueOf(totalOutLinks) + " " + String.valueOf(pageRank);
     }
 }
 
@@ -134,16 +142,17 @@ enum PageRankState {
     NULL;
 }
 
-
+/**
+ * Class Sort, containing the map and reduce functions for sorting our PageRank output
+ * The actual sort is done by configuring our job with conf.setOutputKeyComparatorClass(DoubleWritable.Comparator.class);
+ */
 class Sort {
-    //Mapper class
+    //For a given line, we parse it and output the pageRank as the key and the node as the value
     public static class SortMapper extends MapReduceBase
             implements Mapper<LongWritable,     /*Input key Type */
             Text,                           /*Input value Type*/
             DoubleWritable,                 /*Output key Type*/
             Text>                           /*Output value Type*/ {
-
-        //Map function
         public void map(LongWritable key, Text value, OutputCollector<DoubleWritable, Text> output, Reporter reporter)
                 throws IOException {
             MapParseur res = new MapParseur();
@@ -169,6 +178,9 @@ class Sort {
     }
 }
 
+/**
+ * Class PageRank doing the actually job.
+ */
 public class PageRank {
     //Mapper class
     public static class PageRankMapper extends MapReduceBase
@@ -183,10 +195,11 @@ public class PageRank {
             MapParseur res = new MapParseur();
             res.setFromLine(value.toString());
 
-            //Send pointed nodes to the reduce function, in the aim to be able to reconstruct the input file later
+            //Send the output nodes of the given to the reduce function,
+            // in the aim to be able to reconstruct the input file later as we are going to iterate on it
             output.collect(new Text(String.valueOf(res.node)), new PageRankStruct(res.outputLink, 0, PageRankState.META));
 
-            //For each nodes, we send some of our pagerank score
+            //For each output node, we send it some of our pagerank score
             for (String node : res.outputLink) {
                 output.collect(new Text(String.valueOf(node)), new PageRankStruct(new Vector<String>(), 0.85 * (res.pageRank / res.outputLink.size()), PageRankState.DATA));
             }
@@ -204,7 +217,6 @@ public class PageRank {
 
             while (values.hasNext()) {
                 val = values.next();
-                //If the state is META, then we get the pointed node back
                 if (val.state == PageRankState.META)
                     out.setNodes(val.nodes);
                 else if (val.state == PageRankState.DATA)
@@ -221,12 +233,14 @@ public class PageRank {
 
         Path inPath = new Path(args[0]);
         Path outPath = null;
+        JobConf conf = null;
 
+        //Iterate on our pageRank algorithm, in the aim to calculate the correct score.
         int i = 0;
         for (; i < iterations; ++i) {
             outPath = new Path(args[1] + i);
 
-            JobConf conf = new JobConf(PageRank.class);
+            conf = new JobConf(PageRank.class);
             conf.setJobName("mapreducepagerank");
 
             conf.setOutputKeyClass(Text.class);
@@ -249,9 +263,10 @@ public class PageRank {
             inPath = outPath;
         }
 
+        // Now, we are going to sort our pageRank score
         outPath = new Path(args[1] + i);
 
-        JobConf conf = new JobConf(Sort.class);
+        conf = new JobConf(Sort.class);
         conf.setJobName("sorting values");
 
         conf.setOutputKeyClass(Text.class);
