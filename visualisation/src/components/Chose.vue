@@ -1,35 +1,32 @@
 <template>
-  <div class="chose">
-    <md-whiteframe>
-      <h1 class="md-title">
-        Rues du Grand Lyon
-      </h1>
+  <md-whiteframe class="content">
       <md-button class="md-raised" v-on:click="calculer">
         Lancer !
       </md-button>
+      <md-spinner md-indeterminate v-if="running"></md-spinner>
+      <md-icon class="md-size-2x" v-if="error">error</md-icon>
+      <md-icon class="md-size-2x" v-if="done">done</md-icon>
       <p>
         {{ statut }}
       </p>
       <md-button class="md-raised" v-on:click="afficher">
         Rafraîchir
       </md-button>
-      <p>
-        Les résultats :
-      </p>
+      <h1 class="md-title" v-if="done">
+        Résultats
+      </h1>
       <md-list class="md-double-line">
         <md-list-item v-for="item in results">
-          <div class="md-body-2" style="text-align: center; margin-right: 15px;">
+          <md-avatar style="text-align: center;">
             {{ item.index }}
-          </div>
+          </md-avatar>
           <div class="md-list-text-container">
             <span>{{ item.nom }}</span>
             <span>{{ item.rang }}</span>
           </div>
         </md-list-item>
       </md-list>
-
-    </md-whiteframe>
-  </div>
+  </md-whiteframe>
 </template>
 
 <script>
@@ -39,17 +36,27 @@ export default {
     return {
       statut: 'L’application n’a pas encore été lancée.',
       results: [],
+      running: false,
+      error: false,
+      done: false,
     }
   },
   methods: {
     calculer () {
       this.statut = 'Calcul en cours...'
+      this.running = true
+      this.error = false
+      this.done = false
       this.$http.get('launch')
         .then(() => {
           this.statut = 'Calcul terminé !'
+          this.done = true
+          this.running = false
           this.afficher()
         })
         .catch(() => {
+          this.running = false
+          this.error = true
           this.statut = 'Oups, pas de réponse du serveur...'
         })
     },
@@ -70,7 +77,5 @@ export default {
 </script>
 
 <style scoped>
-  .chose {
-  padding: 5px;
-  }
+  .content { padding: 15px; }
 </style>

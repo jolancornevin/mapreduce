@@ -1,7 +1,11 @@
 <template>
-  <md-toolbar class="titre">
-    <h1 class="md-title">Hadoop + MapReduce</h1>
-  </md-toolbar>
+  <div class="titre">
+    <md-whiteframe>
+      <md-toolbar>
+        <h1 class="md-title">Hadoop + MapReduce</h1>
+      </md-toolbar>
+    </md-whiteframe>
+  </div>
 </template>
 
 <script>

@@ -28,7 +28,7 @@ export default {
 
 <style>
 #content {
-  padding: 5px;
+  padding: 20px;
 }
 
 </style>
